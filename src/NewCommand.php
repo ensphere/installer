@@ -27,7 +27,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.3';
+    protected $version = '1.0.4';
 
     protected function connect()
     {
