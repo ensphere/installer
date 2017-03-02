@@ -29,7 +29,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.7';
+    protected $version = '1.0.8';
 
     protected $hasher;
 
@@ -135,14 +135,28 @@ class NewCommand extends Command
         $this->installAndSetupFrontendApplication( $name, $directory, $input, $output );
 
         $output->writeln( "
-            <fg=green>Your Ensphere application is successfully installed!</>\n\n
-            <fg=blue>Credentials:</>\n\n
-            <fg=yellow>Front URL:</> <fg=green>http://front.{$name}.app</>\n
-            <fg=yellow>Back URL:</> <fg=green>http://back.{$name}.app</>\n
-            <fg=yellow>Email:</> <fg=green>{$this->user->email}</>\n
-            <fg=yellow>Password:</> <fg=green>{$this->user->password_plain}</>
+<fg=green>Your Ensphere application is successfully installed!</>
+
+<fg=blue>Credentials:</>
+
+<fg=yellow>Front URL:</>    <fg=green>http://front.{$name}.app</>
+<fg=yellow>Back URL:</>     <fg=green>http://back.{$name}.app</>
+
+<fg=yellow>Email:</>        <fg=green>{$this->user->email}</>
+<fg=yellow>Password:</>     <fg=green>{$this->user->password_plain}</>
         " );
 
+    }
+
+    /**
+     * @param $name
+     * @param $position
+     * @param $path
+     * @param $output
+     */
+    protected function rename( $name, $position, $path, $output )
+    {
+        $this->runCommand( $output, $path, "php artisan ensphere:rename --vendor={$name} --module={$position}" );
     }
 
     /**
@@ -270,34 +284,8 @@ class NewCommand extends Command
         $this->generateNewKey( $newPath, $output );
         $this->composerUpdate( $newPath, $output );
         $this->composerUpdate( $newPath, $output );
+        $this->rename( $name, 'back', $newPath, $output );
         $this->createUser( $name );
-    }
-
-    /**
-     * @param $name
-     */
-    protected function createUser( $name )
-    {
-        $password = substr( sha1( microtime() ), 0, 8 );
-        $user = User::create([
-            'email'     => $this->emailAddress,
-            'password'  => $this->hasher->make( $password ),
-            'active'    => 1
-        ]);
-        RoleUser::create([
-            'role_id' => 1,
-            'user_id' => 1
-        ]);
-
-        $user->password_plain = $password;
-        $this->user = $user;
-
-        $message = "
-        Your main account has been created for {$name}.\n\n
-        Email: {$user->email}\n
-        Password: {$password}\n\n
-        You will be granted Keymaster permissions.";
-        mail( $this->emailAddress, 'Ensphere Project Authentication', $message );
     }
 
     /**
@@ -325,6 +313,34 @@ class NewCommand extends Command
         $this->generateNewKey( $newPath, $output );
         $this->composerUpdate( $newPath, $output );
         $this->composerUpdate( $newPath, $output );
+        $this->rename( $name, 'front', $newPath, $output );
+    }
+
+    /**
+     * @param $name
+     */
+    protected function createUser( $name )
+    {
+        $password = substr( sha1( microtime() ), 0, 8 );
+        $user = User::create([
+            'email'     => $this->emailAddress,
+            'password'  => $this->hasher->make( $password ),
+            'active'    => 1
+        ]);
+        RoleUser::create([
+            'role_id' => 1,
+            'user_id' => 1
+        ]);
+
+        $user->password_plain = $password;
+        $this->user = $user;
+
+        $message = "
+        Your main account has been created for {$name}.\n\n
+        Email: {$user->email}\n
+        Password: {$password}\n\n
+        You will be granted Keymaster permissions.";
+        mail( $this->emailAddress, 'Ensphere Project Authentication', $message );
     }
 
     /**
