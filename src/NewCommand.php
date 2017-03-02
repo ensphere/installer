@@ -16,6 +16,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Container\Container;
 use Ensphere\Installer\Models\User;
+use Ensphere\Installer\Models\RoleUser;
 use Illuminate\Hashing\BcryptHasher;
 use STDclass;
 
@@ -28,9 +29,11 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.5';
+    protected $version = '1.0.6';
 
     protected $hasher;
+
+    protected $user;
 
     protected function connect()
     {
@@ -131,10 +134,20 @@ class NewCommand extends Command
         $this->installAndSetupBackendApplication( $name, $directory, $input, $output );
         $this->installAndSetupFrontendApplication( $name, $directory, $input, $output );
 
-        $output->writeln( '<comment>Application ready! Build something amazing.</comment>' );
+        $output->writeln( "
+            <fg=green>Your Ensphere application is successfully installed!</>\n\n
+            <fg=blue>Credentials:</>\n\n
+            <fg=yellow>Front URL:</> <fg=green>http://front.{$name}.app</>\n
+            <fg=yellow>Back URL:</> <fg=green>http://back.{$name}.app</>\n
+            <fg=yellow>Email:</> <fg=green>{$this->user->email}</>\n
+            <fg=yellow>Password:</> <fg=green>{$this->user->password_plain}</>
+        " );
 
     }
 
+    /**
+     * @param $directory
+     */
     protected function verifyApplicationDoesntExist( $directory )
     {
         if ( (is_dir( $directory) || is_file( $directory ) ) && $directory != getcwd() ) {
@@ -210,12 +223,14 @@ class NewCommand extends Command
             '[APP_URL]',
             '[DB_DATABASE]',
             '[DB_USERNAME]',
-            '[DB_PASSWORD]'
+            '[DB_PASSWORD]',
+            '[FILESYSTEM_ROOT]'
         ], [
             "http://{$position}.{$name}.app",
             $db->name,
             $db->user,
             $db->pass,
+            ( $position === 'back' ? 'storage/app' : "../{$name}-back/storage/app" )
         ], $env );
         file_put_contents( "{$directory}.env.example", $env );
     }
@@ -263,21 +278,25 @@ class NewCommand extends Command
      */
     protected function createUser( $name )
     {
-        $password = substr( sha1( microtime() ), 8 );
+        $password = substr( sha1( microtime() ), 0, 8 );
         $user = User::create([
             'email'     => $this->emailAddress,
             'password'  => $this->hasher->make( $password ),
             'active'    => 1
         ]);
+        RoleUser::create([
+            'role_id' => 1,
+            'user_id' => 1
+        ]);
+
+        $user->password_plain = $password;
+        $this->user = $user;
 
         $message = "
-        <p>Your main account has been created for {$name}.</p>
-        <ul>
-            <li>Email: {$user->email}</li>
-            <li>Password: {$password}</li>
-        </ul>
-        <p>You will be granted Keymaster permissions.</p>
-        ";
+        Your main account has been created for {$name}.\n\n
+        Email: {$user->email}\n
+        Password: {$password}\n\n
+        You will be granted Keymaster permissions.";
         mail( $this->emailAddress, 'Ensphere Project Authentication', $message );
     }
 
