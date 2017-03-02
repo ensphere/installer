@@ -5,6 +5,6 @@ if (file_exists(__DIR__.'/../../autoload.php')) {
 } else {
     require __DIR__.'/vendor/autoload.php';
 }
-$app = new Symfony\Component\Console\Application( 'Ensphere Installer', '1.0.0' );
+$app = new Symfony\Component\Console\Application( 'Ensphere Installer', '1.0.3' );
 $app->add( new Ensphere\Installer\NewCommand );
 $app->run();

@@ -12,12 +12,40 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\Question;
+use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Events\Dispatcher;
+use Illuminate\Container\Container;
+use Ensphere\Installer\Models\User;
 use STDclass;
 
 class NewCommand extends Command
 {
 
     protected $dbdetails;
+
+    protected $capsule;
+
+    protected $emailAddress;
+
+    protected $version = '1.0.3';
+
+    protected function connect()
+    {
+        $this->capsule = new Capsule;
+        $this->capsule->addConnection([
+            'driver'    => 'mysql',
+            'host'      => 'localhost',
+            'database'  => $this->dbdetails->name,
+            'username'  => $this->dbdetails->user,
+            'password'  => $this->dbdetails->pass,
+            'charset'   => 'utf8',
+            'collation' => 'utf8_unicode_ci',
+            'prefix'    => '',
+        ]);
+        $this->capsule->setEventDispatcher( new Dispatcher( new Container ) );
+        $this->capsule->setAsGlobal();
+        $this->capsule->bootEloquent();
+    }
 
     protected function configure()
     {
@@ -48,11 +76,34 @@ class NewCommand extends Command
             if( ! $databasePassword = $helper->ask( $input, $output, $question ) ) {
                 throw new RuntimeException( 'You must supply a database password to complete the installation process.' );
             }
+            $question = new Question( 'What is your email address (required for admin login): ', false );
+            if( ! $this->emailAddress = $helper->ask( $input, $output, $question ) ) {
+                throw new RuntimeException( 'You must supply a valid email address to complete the installation process.' );
+            }
             $this->dbdetails->name = $databaseName;
             $this->dbdetails->user = $databaseUser;
             $this->dbdetails->pass = $databasePassword;
+            $this->connect();
         }
         return $this->dbdetails;
+    }
+
+    /**
+     * @param $output
+     */
+    protected function checkUsingLatestVersion( $output )
+    {
+        $data = json_decode( file_get_contents( 'https://packagist.org/p/ensphere/installer.json' ) );
+        $versions = [];
+        $tmpVersions = $data->packages->{'ensphere/installer'};
+        foreach( $tmpVersions as $version => $package ) {
+            $versions[] = $version;
+        }
+        usort( $versions, 'version_compare' );
+        $latest = array_reverse( $versions )[0];
+        if( $latest !== $this->version ) {
+            throw new RuntimeException( "This versions of the installer is out of date, please run 'composer global update \"ensphere/installer\"'." );
+        }
     }
 
     /**
@@ -67,6 +118,7 @@ class NewCommand extends Command
         if ( ! class_exists( 'ZipArchive' ) ) {
             throw new RuntimeException( 'The Zip PHP extension is not installed. Please install it and try again.' );
         }
+        $this->checkUsingLatestVersion( $output );
         $name = strtolower( preg_replace( "/[^\w\d]+/i", '-', $input->getArgument( 'name' ) ) );
         $this->verifyApplicationDoesntExist(
             $directory = ( $name ) ? getcwd() . '/' . $name : getcwd()
@@ -183,21 +235,46 @@ class NewCommand extends Command
     {
         $output->writeln( '<info>Creating Backend application...</info>' );
         $this->download( $zipFile = $this->makeFilename() )->extract( $zipFile, $directory )->cleanUp( $zipFile );
-        rename( "{$directory}/ensphere-master", "{$directory}/{$name}-back" );
-        $this->setupEnvExampleFile( "{$directory}/{$name}-back/", $name, 'back', $input, $output  );
-        $this->addModulesJsonFile( "{$directory}/{$name}-back/", json_encode( [
-            'purposemedia/authentication' => '^2.0',
-            'purposemedia/module-manager' => '^2.0',
-            'purposemedia/sites' => '^2.0',
-            'purposemedia/users' => '^2.0'
+        $newPath = "{$directory}/{$name}-back/";
+
+        rename( "{$directory}/ensphere-master/", $newPath );
+        $this->setupEnvExampleFile( $newPath, $name, 'back', $input, $output  );
+        $this->addModulesJsonFile( $newPath, json_encode( [
+            'purposemedia/authentication'   => '^2.0',
+            'purposemedia/module-manager'   => '^2.0',
+            'purposemedia/sites'            => '^2.0',
+            'purposemedia/users'            => '^2.0'
         ], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES ) );
 
-        $this->installProject( "{$directory}/{$name}-back/", $output );
-        $this->copyEnv( "{$directory}/{$name}-back/", $output );
-        $this->generateNewKey( "{$directory}/{$name}-back/", $output );
-        $this->composerUpdate( "{$directory}/{$name}-back/", $output );
-        $this->composerUpdate( "{$directory}/{$name}-back/", $output );
+        $this->installProject( $newPath, $output );
+        $this->copyEnv( $newPath, $output );
+        $this->generateNewKey( $newPath, $output );
+        $this->composerUpdate( $newPath, $output );
+        $this->composerUpdate( $newPath, $output );
+        $this->createUser( $name );
+    }
 
+    /**
+     * @param $name
+     */
+    protected function createUser( $name )
+    {
+        $password = substr( sha1( microtime() ), 8 );
+        $user = User::create([
+            'email'     => $this->emailAddress,
+            'password'  => bcrypt( $password ),
+            'active'    => 1
+        ]);
+
+        $message = "
+        <p>Your main account has been created for {$name}.</p>
+        <ul>
+            <li>Email: {$user->email}</li>
+            <li>Password: {$password}</li>
+        </ul>
+        <p>You will be granted Keymaster permissions.</p>
+        ";
+        mail( $this->emailAddress, 'Ensphere Project Authentication', $message );
     }
 
     /**
@@ -210,19 +287,21 @@ class NewCommand extends Command
     {
         $output->writeln( '<info>Creating Frontend application...</info>' );
         $this->download( $zipFile = $this->makeFilename() )->extract( $zipFile, $directory )->cleanUp( $zipFile );
-        rename( "{$directory}/ensphere-master", "{$directory}/{$name}-front" );
-        $this->setupEnvExampleFile( "{$directory}/{$name}-front/", $name, 'front', $input, $output );
-        $this->addModulesJsonFile( "{$directory}/{$name}-front/", json_encode( [
-            'purposemedia/front-container' => '^2.0',
-            'purposemedia/front-sites' => '^2.0',
-            'purposemedia/front-pages' => '^2.0'
+        $newPath = "{$directory}/{$name}-front/";
+
+        rename( "{$directory}/ensphere-master/", $newPath );
+        $this->setupEnvExampleFile( $newPath, $name, 'front', $input, $output );
+        $this->addModulesJsonFile( $newPath, json_encode( [
+            'purposemedia/front-container'  => '^2.0',
+            'purposemedia/front-sites'      => '^2.0',
+            'purposemedia/front-pages'      => '^2.0'
         ], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES ) );
 
-        $this->installProject( "{$directory}/{$name}-front/", $output );
-        $this->copyEnv( "{$directory}/{$name}-front/", $output );
-        $this->generateNewKey( "{$directory}/{$name}-front/", $output );
-        $this->composerUpdate( "{$directory}/{$name}-front/", $output );
-        $this->composerUpdate( "{$directory}/{$name}-front/", $output );
+        $this->installProject( $newPath, $output );
+        $this->copyEnv( $newPath, $output );
+        $this->generateNewKey( $newPath, $output );
+        $this->composerUpdate( $newPath, $output );
+        $this->composerUpdate( $newPath, $output );
     }
 
     /**
