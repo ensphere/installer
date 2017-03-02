@@ -21,7 +21,8 @@
     "symfony/console": "~2.3|~3.0",
     "symfony/process": "~2.3|~3.0",
     "illuminate/database": "*",
-    "illuminate/events" : "*"
+    "illuminate/events" : "*",
+    "illuminate/hashing" : "*"
   },
   "bin": [
     "ensphere"

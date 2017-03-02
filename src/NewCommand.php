@@ -16,6 +16,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Container\Container;
 use Ensphere\Installer\Models\User;
+use Illuminate\Hashing\BcryptHasher;
 use STDclass;
 
 class NewCommand extends Command
@@ -27,7 +28,9 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.4';
+    protected $version = '1.0.5';
+
+    protected $hasher;
 
     protected function connect()
     {
@@ -102,7 +105,7 @@ class NewCommand extends Command
         usort( $versions, 'version_compare' );
         $latest = array_reverse( $versions )[0];
         if( $latest !== $this->version ) {
-            throw new RuntimeException( "This versions of the installer is out of date, please run 'composer global update \"ensphere/installer\"'." );
+            throw new RuntimeException( "This version of the installer is out of date, please run 'composer global update \"ensphere/installer\"'." );
         }
     }
 
@@ -118,6 +121,7 @@ class NewCommand extends Command
         if ( ! class_exists( 'ZipArchive' ) ) {
             throw new RuntimeException( 'The Zip PHP extension is not installed. Please install it and try again.' );
         }
+        $this->hasher = new BcryptHasher();
         $this->checkUsingLatestVersion( $output );
         $name = strtolower( preg_replace( "/[^\w\d]+/i", '-', $input->getArgument( 'name' ) ) );
         $this->verifyApplicationDoesntExist(
@@ -262,7 +266,7 @@ class NewCommand extends Command
         $password = substr( sha1( microtime() ), 8 );
         $user = User::create([
             'email'     => $this->emailAddress,
-            'password'  => bcrypt( $password ),
+            'password'  => $this->hasher->make( $password ),
             'active'    => 1
         ]);
 
