@@ -29,7 +29,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.8';
+    protected $version = '1.0.9';
 
     protected $hasher;
 
@@ -285,6 +285,7 @@ class NewCommand extends Command
         $this->composerUpdate( $newPath, $output );
         $this->composerUpdate( $newPath, $output );
         $this->rename( $name, 'back', $newPath, $output );
+        $this->runCommand( $output, $newPath, "php artisan vendor:publish --tag=install" );
         $this->createUser( $name );
     }
 
@@ -314,6 +315,7 @@ class NewCommand extends Command
         $this->composerUpdate( $newPath, $output );
         $this->composerUpdate( $newPath, $output );
         $this->rename( $name, 'front', $newPath, $output );
+        $this->runCommand( $output, $newPath, "php artisan vendor:publish --tag=install" );
     }
 
     /**
