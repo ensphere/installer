@@ -29,7 +29,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.9';
+    protected $version = '1.0.10';
 
     protected $hasher;
 
@@ -40,7 +40,7 @@ class NewCommand extends Command
         $this->capsule = new Capsule;
         $this->capsule->addConnection([
             'driver'    => 'mysql',
-            'host'      => 'localhost',
+            'host'      => '127.0.0.1',
             'database'  => $this->dbdetails->name,
             'username'  => $this->dbdetails->user,
             'password'  => $this->dbdetails->pass,
