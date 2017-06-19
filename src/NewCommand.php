@@ -29,7 +29,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.10';
+    protected $version = '1.0.11';
 
     protected $hasher;
 
@@ -40,7 +40,7 @@ class NewCommand extends Command
         $this->capsule = new Capsule;
         $this->capsule->addConnection([
             'driver'    => 'mysql',
-            'host'      => '127.0.0.1',
+            'host'      => $this->dbdetails->host,
             'database'  => $this->dbdetails->name,
             'username'  => $this->dbdetails->user,
             'password'  => $this->dbdetails->pass,
@@ -70,6 +70,10 @@ class NewCommand extends Command
             $output->writeln( '<error>SETUP YOUR DATABASE BEFORE ENTERING DETAILS!</error>' );
             $this->dbdetails = new STDclass;
             $helper = $this->getHelper( 'question' );
+            $question = new Question( 'What is your database host: ', false );
+            if( ! $databaseHost = $helper->ask( $input, $output, $question ) ) {
+                throw new RuntimeException( 'You must supply a database host to complete the installation process.' );
+            }
             $question = new Question( 'What is your database name: ', false );
             if( ! $databaseName = $helper->ask( $input, $output, $question ) ) {
                 throw new RuntimeException( 'You must supply a database name to complete the installation process.' );
@@ -89,6 +93,7 @@ class NewCommand extends Command
             $this->dbdetails->name = $databaseName;
             $this->dbdetails->user = $databaseUser;
             $this->dbdetails->pass = $databasePassword;
+            $this->dbdetails->host = $databaseHost;
             $this->connect();
         }
         return $this->dbdetails;
@@ -235,12 +240,14 @@ class NewCommand extends Command
         $db = $this->getDatabaseDetails( $input, $output );
         $env = str_replace( [
             '[APP_URL]',
+            '[DB_HOST]',
             '[DB_DATABASE]',
             '[DB_USERNAME]',
             '[DB_PASSWORD]',
             '[FILESYSTEM_ROOT]'
         ], [
             "http://{$position}.{$name}.app",
+            $db->host,
             $db->name,
             $db->user,
             $db->pass,
