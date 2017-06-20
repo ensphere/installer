@@ -349,6 +349,7 @@ class NewCommand extends Command
         $user = User::create([
             'email'     => $this->emailAddress,
             'password'  => $this->hasher->make( $password ),
+            'name'      => 'Admin',
             'active'    => 1
         ]);
         RoleUser::create([
