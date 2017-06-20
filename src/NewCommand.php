@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\Question;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Container\Container;
@@ -29,7 +30,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.11';
+    protected $version = '1.0.12';
 
     protected $hasher;
 
@@ -70,9 +71,17 @@ class NewCommand extends Command
             $output->writeln( '<error>SETUP YOUR DATABASE BEFORE ENTERING DETAILS!</error>' );
             $this->dbdetails = new STDclass;
             $helper = $this->getHelper( 'question' );
+
+            $question = new ConfirmationQuestion( 'Are you using MAMP [y/n]', false );
+            $usingMAMP = $helper->ask( $input, $output, $question );
+
             $question = new Question( 'What is your database host: ', false );
             if( ! $databaseHost = $helper->ask( $input, $output, $question ) ) {
                 throw new RuntimeException( 'You must supply a database host to complete the installation process.' );
+            }
+            $question = new Question( 'What is your database port (3306): ', false );
+            if( ! $databasePort = $helper->ask( $input, $output, $question ) ) {
+                throw new RuntimeException( 'You must supply a database port to complete the installation process.' );
             }
             $question = new Question( 'What is your database name: ', false );
             if( ! $databaseName = $helper->ask( $input, $output, $question ) ) {
@@ -94,6 +103,8 @@ class NewCommand extends Command
             $this->dbdetails->user = $databaseUser;
             $this->dbdetails->pass = $databasePassword;
             $this->dbdetails->host = $databaseHost;
+            $this->dbdetails->mamp = $usingMAMP;
+            $this->dbdetails->port = $databasePort;
             $this->connect();
         }
         return $this->dbdetails;
@@ -240,18 +251,22 @@ class NewCommand extends Command
         $db = $this->getDatabaseDetails( $input, $output );
         $env = str_replace( [
             '[APP_URL]',
+            '[MAMP_SOCKET]',
             '[DB_HOST]',
             '[DB_DATABASE]',
             '[DB_USERNAME]',
             '[DB_PASSWORD]',
-            '[FILESYSTEM_ROOT]'
+            '[FILESYSTEM_ROOT]',
+            '[DB_PORT]'
         ], [
             "http://{$position}.{$name}.app",
+            $db->mamp ? 'DB_SOCKET=/Applications/MAMP/tmp/mysql/mysql.sock' : '',
             $db->host,
             $db->name,
             $db->user,
             $db->pass,
-            ( $position === 'back' ? 'storage/app' : "../{$name}-back/storage/app" )
+            ( $position === 'back' ? 'storage/app' : "../{$name}-back/storage/app" ),
+            $db->port
         ], $env );
         file_put_contents( "{$directory}.env.example", $env );
     }
