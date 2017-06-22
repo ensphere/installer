@@ -79,7 +79,7 @@ class NewCommand extends Command
             if( ! $databaseHost = $helper->ask( $input, $output, $question ) ) {
                 throw new RuntimeException( 'You must supply a database host to complete the installation process.' );
             }
-            $question = new Question( 'What is your database port (3306): ', false );
+            $question = new Question( 'What is your database port (3306): ', 3306 );
             if( ! $databasePort = $helper->ask( $input, $output, $question ) ) {
                 throw new RuntimeException( 'You must supply a database port to complete the installation process.' );
             }
