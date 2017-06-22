@@ -30,7 +30,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.14';
+    protected $version = '1.0.15';
 
     protected $hasher;
 
@@ -248,10 +248,23 @@ class NewCommand extends Command
      */
     protected function setupEnvExampleFile( $directory, $name, $position, $input, $output )
     {
-        $env = file_get_contents( __DIR__ . '/.env.example' );
-        $db = $this->getDatabaseDetails( $input, $output );
         $tld = ( $customTld = $input->getArgument( 'tld' ) ) ? $customTld : '.app';
+        $env = file_get_contents( __DIR__ . '/.env.example' );
+
+        $coreArray = $position === 'front' ? $this->frontEndCoreEnvSettings() : $this->backEndCoreEnvSettings();
+        $coreArray['APP_URL'] = "http://{$position}.{$name}{$tld}";
+
+        if( $position === 'front' ) {
+            $coreArray['FILESYSTEM_ROOT'] = "../{$name}-back/storage/app";
+        } else {
+            $coreArray['FRONT_END_URL'] = "http://front.{$name}{$tld}";
+            $coreArray['FRONT_END_FOLDER'] = "{$name}-front";
+        }
+
+        $db = $this->getDatabaseDetails( $input, $output );
+
         $env = str_replace( [
+            '[ENSPHERE_CORE_SETTINGS]',
             '[APP_URL]',
             '[MAMP_SOCKET]',
             '[DB_HOST]',
@@ -261,6 +274,7 @@ class NewCommand extends Command
             '[FILESYSTEM_ROOT]',
             '[DB_PORT]'
         ], [
+            http_build_query( $coreArray, '', "\n" ),
             "http://{$position}.{$name}{$tld}",
             $db->mamp ? 'DB_SOCKET=/Applications/MAMP/tmp/mysql/mysql.sock' : '',
             $db->host,
@@ -404,6 +418,41 @@ class NewCommand extends Command
     protected function composerUpdate( $path, $output )
     {
         $this->runCommand( $output, $path, "php composer.phar update" );
+    }
+
+    /**
+     * @return array
+     */
+    protected function frontEndCoreEnvSettings()
+    {
+        return [
+            'USE_PASSPHRASE' => 'true',
+            'PASSPHRASE' => 'purpose',
+            'DISK_STORAGE' => 'local',
+            'FILESYSTEM_ROOT' => null,
+            'APP_URL' => null,
+            'SITE_ID' => '1',
+            'HOME' => getenv( 'HOME' ),
+            'PATH' => getenv( 'PATH' )
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    protected function backEndCoreEnvSettings()
+    {
+        return [
+            'USE_PASSPHRASE' => 'true',
+            'PASSPHRASE' => 'purpose',
+            'DISK_STORAGE' => 'local',
+            'FILESYSTEM_ROOT' => 'storage/app',
+            'APP_URL' => null,
+            'FRONT_END_URL' => null,
+            'FRONT_END_FOLDER' => null,
+            'HOME' => getenv( 'HOME' ),
+            'PATH' => getenv( 'PATH' )
+        ];
     }
 
     /**
