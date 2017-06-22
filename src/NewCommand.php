@@ -30,7 +30,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.13';
+    protected $version = '1.0.14';
 
     protected $hasher;
 
@@ -59,7 +59,8 @@ class NewCommand extends Command
         $this
             ->setName( 'new' )
             ->setDescription( 'Create a new Ensphere application.' )
-            ->addArgument( 'name', InputArgument::OPTIONAL );
+            ->addArgument( 'name', InputArgument::OPTIONAL )
+            ->addArgument( 'tld', InputArgument::OPTIONAL );
     }
 
     /**
@@ -249,6 +250,7 @@ class NewCommand extends Command
     {
         $env = file_get_contents( __DIR__ . '/.env.example' );
         $db = $this->getDatabaseDetails( $input, $output );
+        $tld = ( $customTld = $input->getArgument( 'tld' ) ) ? $customTld : '.app';
         $env = str_replace( [
             '[APP_URL]',
             '[MAMP_SOCKET]',
@@ -259,7 +261,7 @@ class NewCommand extends Command
             '[FILESYSTEM_ROOT]',
             '[DB_PORT]'
         ], [
-            "http://{$position}.{$name}.app",
+            "http://{$position}.{$name}{$tld}",
             $db->mamp ? 'DB_SOCKET=/Applications/MAMP/tmp/mysql/mysql.sock' : '',
             $db->host,
             $db->name,
