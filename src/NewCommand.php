@@ -30,7 +30,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.15';
+    protected $version = '1.0.16';
 
     protected $hasher;
 
@@ -271,17 +271,15 @@ class NewCommand extends Command
             '[DB_DATABASE]',
             '[DB_USERNAME]',
             '[DB_PASSWORD]',
-            '[FILESYSTEM_ROOT]',
             '[DB_PORT]'
         ], [
-            http_build_query( $coreArray, '', "\n" ),
+            str_replace( [ '%2F', '%3A' ], [ '/', ':' ], http_build_query( $coreArray, '', "\n" ) ),
             "http://{$position}.{$name}{$tld}",
             $db->mamp ? 'DB_SOCKET=/Applications/MAMP/tmp/mysql/mysql.sock' : '',
             $db->host,
             $db->name,
             $db->user,
             $db->pass,
-            ( $position === 'back' ? 'storage/app' : "../{$name}-back/storage/app" ),
             $db->port
         ], $env );
         file_put_contents( "{$directory}.env.example", $env );
