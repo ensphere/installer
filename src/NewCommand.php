@@ -30,7 +30,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.16';
+    protected $version = '1.0.17';
 
     protected $hasher;
 
@@ -309,10 +309,11 @@ class NewCommand extends Command
         rename( "{$directory}/ensphere-master/", $newPath );
         $this->setupEnvExampleFile( $newPath, $name, 'back', $input, $output  );
         $this->addModulesJsonFile( $newPath, json_encode( [
-            'purposemedia/authentication'   => '^2.0',
-            'purposemedia/module-manager'   => '^2.0',
-            'purposemedia/sites'            => '^2.0',
-            'purposemedia/users'            => '^2.0'
+            'purposemedia/authentication'           => '^2.0',
+            'purposemedia/module-manager'           => '^2.0',
+            'purposemedia/admin-media-manager'      => '^3.0',
+            'purposemedia/sites'                    => '^2.0',
+            'purposemedia/users'                    => '^2.0'
         ], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES ) );
 
         $this->installProject( $newPath, $output );
@@ -340,9 +341,10 @@ class NewCommand extends Command
         rename( "{$directory}/ensphere-master/", $newPath );
         $this->setupEnvExampleFile( $newPath, $name, 'front', $input, $output );
         $this->addModulesJsonFile( $newPath, json_encode( [
-            'purposemedia/front-container'  => '^2.0',
-            'purposemedia/front-sites'      => '^2.0',
-            'purposemedia/front-pages'      => '^2.0'
+            'purposemedia/front-container'          => '^2.0',
+            'purposemedia/front-sites'              => '^2.0',
+            'purposemedia/front-pages'              => '^2.0',
+            'purposemedia/front-media-manager'      => '^3.0',
         ], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES ) );
 
         $this->installProject( $newPath, $output );
@@ -361,10 +363,17 @@ class NewCommand extends Command
     {
         $password = substr( sha1( microtime() ), 0, 8 );
         $user = User::create([
-            'email'     => $this->emailAddress,
-            'password'  => $this->hasher->make( $password ),
-            'name'      => 'Admin',
-            'active'    => 1
+            'email'         => $this->emailAddress,
+            'password'      => $this->hasher->make( $password ),
+            'name'          => 'Purpose Media',
+            'active'        => 1,
+            'media_id'      => 0,
+            'job_role'      => 'E-commerce Specialists',
+            'bio'           => '<p>Purpose Media is an award-winning full service digital agency. Our purpose is to increase sales, reduce costs and improve the profitability of our clients.</p><p>We specialise in e-commerce, digital marketing, creative design, content creation and video production.</p>',
+            'twitter_ur'    => 'https://www.twitter.com/purposemediauk',
+            'facebook_url'  => 'https://www.facebook.com/purposemediauk',
+            'instagram_url' => 'https://www.instagram.com/purposemediauk/',
+            'linkedin_url'  => 'https://www.linkedin.com/company/1848387/'
         ]);
         RoleUser::create([
             'role_id' => 1,
