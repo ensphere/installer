@@ -30,7 +30,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.17';
+    protected $version = '1.0.18';
 
     protected $hasher;
 
@@ -370,7 +370,7 @@ class NewCommand extends Command
             'media_id'      => 0,
             'job_role'      => 'E-commerce Specialists',
             'bio'           => '<p>Purpose Media is an award-winning full service digital agency. Our purpose is to increase sales, reduce costs and improve the profitability of our clients.</p><p>We specialise in e-commerce, digital marketing, creative design, content creation and video production.</p>',
-            'twitter_ur'    => 'https://www.twitter.com/purposemediauk',
+            'twitter_url'   => 'https://www.twitter.com/purposemediauk',
             'facebook_url'  => 'https://www.facebook.com/purposemediauk',
             'instagram_url' => 'https://www.instagram.com/purposemediauk/',
             'linkedin_url'  => 'https://www.linkedin.com/company/1848387/'
