@@ -18,6 +18,7 @@ use Illuminate\Events\Dispatcher;
 use Illuminate\Container\Container;
 use Ensphere\Installer\Models\User;
 use Ensphere\Installer\Models\RoleUser;
+use Ensphere\Installer\Models\Site;
 use Illuminate\Hashing\BcryptHasher;
 use STDclass;
 
@@ -30,11 +31,66 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.18';
+    protected $version = '1.0.19';
 
     protected $hasher;
 
     protected $user;
+
+    protected $modulesUrl = 'https://modules.testing.pm/';
+
+    protected $availableModules = [];
+
+    protected $frontRequired = [
+        'purposemedia/front-banners',
+        'purposemedia/front-blog',
+        'purposemedia/front-contact',
+        'purposemedia/front-container',
+        'purposemedia/front-customers',
+        'purposemedia/front-delivery',
+        'purposemedia/front-feeds',
+        'purposemedia/front-form-builder',
+        'purposemedia/front-mailing-list',
+        'purposemedia/front-media-manager',
+        'purposemedia/front-menu-manager',
+        'purposemedia/front-pages',
+        'purposemedia/front-post-types',
+        'purposemedia/front-redirects',
+        'purposemedia/front-search',
+        'purposemedia/front-shop',
+        'purposemedia/front-sitemap',
+        'purposemedia/front-sites',
+        'purposemedia/front-snippets',
+        'purposemedia/front-social-feeds',
+        'purposemedia/front-ads-manager',
+        'purposemedia/front-multibuy'
+    ];
+
+    protected $backRequired = [
+        'purposemedia/sites',
+        'purposemedia/users',
+        'purposemedia/admin-ads-manager',
+        'purposemedia/admin-banners',
+        'purposemedia/admin-blog',
+        'purposemedia/admin-contact',
+        'purposemedia/admin-customers',
+        'purposemedia/admin-delivery',
+        'purposemedia/admin-feeds',
+        'purposemedia/admin-form-builder',
+        'purposemedia/admin-mailing-list',
+        'purposemedia/admin-media-manager',
+        'purposemedia/admin-menu-manager',
+        'purposemedia/admin-multibuy',
+        'purposemedia/admin-pages',
+        'purposemedia/admin-post-types',
+        'purposemedia/admin-redirects',
+        'purposemedia/admin-search-modules',
+        'purposemedia/admin-settings',
+        'purposemedia/admin-shop',
+        'purposemedia/admin-snippets',
+        'purposemedia/admin-social-feeds',
+        'purposemedia/authentication'
+    ];
 
     protected function connect()
     {
@@ -130,6 +186,42 @@ class NewCommand extends Command
     }
 
     /**
+     * @param $versions
+     * @return array
+     */
+    protected function removeNonNumericVersions( $versions )
+    {
+        $return = [];
+        foreach( $versions as $key => $version ) {
+            $cleansed = str_replace( '.', '', $version->version );
+            if( is_numeric( $cleansed ) ) {
+                $return[$version->version] = [
+                    'name' => $version->name,
+                    'version' => $version->version
+                ];
+            }
+        }
+        ksort( $return, SORT_NUMERIC );
+        return array_reverse( $return );
+    }
+
+    /**
+     * @return array
+     */
+    protected function getAvailableModules()
+    {
+        $data = json_decode( file_get_contents( $this->modulesUrl . 'packages.json' ) );
+        $modules = json_decode( file_get_contents( $this->modulesUrl . key( $data->includes ) ) )->packages;
+        $cleansed = [];
+        foreach( $modules as $moduleName => $versions ) {
+            $versions = $this->removeNonNumericVersions( (array) $versions );
+            $latest = array_shift( $versions );
+            $cleansed[ $latest['name'] ] = $latest['version'];
+        }
+        return array_filter( $cleansed );
+    }
+
+    /**
      * Execute the command.
      *
      * @param  \Symfony\Component\Console\Input\InputInterface  $input
@@ -148,6 +240,7 @@ class NewCommand extends Command
             $directory = ( $name ) ? getcwd() . '/' . $name : getcwd()
         );
 
+        $this->availableModules = $this->getAvailableModules();
         $this->installAndSetupBackendApplication( $name, $directory, $input, $output );
         $this->installAndSetupFrontendApplication( $name, $directory, $input, $output );
 
@@ -295,6 +388,29 @@ class NewCommand extends Command
     }
 
     /**
+     * @param $directory
+     * @param string $position
+     * @return void
+     */
+    protected function addModulesToComposerFile( $directory, $position = 'front' )
+    {
+        $composer = json_decode( file_get_contents( "{$directory}composer.json" ) );
+        $required = $position === 'front' ? $this->frontRequired : $this->backRequired;
+        foreach( $required as $name ) {
+            $composer->require->{$name} = "^" . preg_replace( "#\.\d+$#", '', $this->availableModules[ $name ] );
+        }
+
+        if( $position === 'front' ) {
+            $composer->extra = new STDclass;
+            $composer->extra->bower = new STDclass;
+            $composer->extra->bower->require = new STDclass;
+            $composer->extra->bower->require->jquery = '^1.8.0';
+        }
+
+        file_put_contents( "{$directory}composer.json", json_encode( $composer, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES ) );
+    }
+
+    /**
      * @param $name
      * @param $directory
      * @param $input
@@ -307,23 +423,47 @@ class NewCommand extends Command
         $newPath = "{$directory}/{$name}-back/";
 
         rename( "{$directory}/ensphere-master/", $newPath );
-        $this->setupEnvExampleFile( $newPath, $name, 'back', $input, $output  );
-        $this->addModulesJsonFile( $newPath, json_encode( [
-            'purposemedia/authentication'           => '^2.0',
-            'purposemedia/module-manager'           => '^2.0',
-            'purposemedia/admin-media-manager'      => '^3.0',
-            'purposemedia/sites'                    => '^2.0',
-            'purposemedia/users'                    => '^2.0'
-        ], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES ) );
 
+        $this->setupEnvExampleFile( $newPath, $name, 'back', $input, $output  );
+        $this->addModulesToComposerFile( $newPath, 'back' );
         $this->installProject( $newPath, $output );
         $this->copyEnv( $newPath, $output );
         $this->generateNewKey( $newPath, $output );
         $this->composerUpdate( $newPath, $output );
-        $this->composerUpdate( $newPath, $output );
         $this->rename( $name, 'back', $newPath, $output );
         $this->runCommand( $output, $newPath, "php artisan vendor:publish --tag=install" );
         $this->createUser( $name );
+        $this->createSite( $input, $name );
+    }
+
+    /**
+     * @param $input
+     * @param $name
+     */
+    protected function createSite( $input, $name )
+    {
+        $siteName = ucwords( $input->getArgument( 'name' ) );
+        Site::create([
+            'name' => $siteName,
+            'default' => 1,
+            'meta_title' => $siteName,
+            'meta_description' => $siteName,
+            'country_id' => 239,
+            'email' => $this->emailAddress,
+            'order_notifcation_email' => $this->emailAddress,
+            'emails_from' => $this->emailAddress,
+            'vat_rate' => 20.00,
+            'price_storage_type' => 1,
+            'display_prices_for' => 1,
+            'terms_conditions_version' => 1.0,
+            'front_end_url' => "{$name}-front",
+            'front_end_folder' => "http://front.{$name}.app",
+            'emails_from_name' => $siteName,
+            'smtp_username' => 'AKIAJEUDEMHOCP2Y4E3A',
+            'smtp_password' => 'AjZ0Gj9P2xpr9JK9q/2ae9Dd4FYpmG9ZOM92txTGwtYE',
+            'smtp_port' => '587',
+            'smtp_host' => 'email-smtp.eu-west-1.amazonaws.com'
+        ]);
     }
 
     /**
@@ -339,18 +479,12 @@ class NewCommand extends Command
         $newPath = "{$directory}/{$name}-front/";
 
         rename( "{$directory}/ensphere-master/", $newPath );
-        $this->setupEnvExampleFile( $newPath, $name, 'front', $input, $output );
-        $this->addModulesJsonFile( $newPath, json_encode( [
-            'purposemedia/front-container'          => '^2.0',
-            'purposemedia/front-sites'              => '^2.0',
-            'purposemedia/front-pages'              => '^2.0',
-            'purposemedia/front-media-manager'      => '^3.0',
-        ], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES ) );
 
+        $this->setupEnvExampleFile( $newPath, $name, 'front', $input, $output );
+        $this->addModulesToComposerFile( $newPath, 'front' );
         $this->installProject( $newPath, $output );
         $this->copyEnv( $newPath, $output );
         $this->generateNewKey( $newPath, $output );
-        $this->composerUpdate( $newPath, $output );
         $this->composerUpdate( $newPath, $output );
         $this->rename( $name, 'front', $newPath, $output );
         $this->runCommand( $output, $newPath, "php artisan vendor:publish --tag=install" );
