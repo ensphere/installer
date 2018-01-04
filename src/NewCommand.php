@@ -31,7 +31,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.19';
+    protected $version = '1.0.20';
 
     protected $hasher;
 
