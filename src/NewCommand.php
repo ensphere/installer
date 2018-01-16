@@ -31,7 +31,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.20';
+    protected $version = '1.0.21';
 
     protected $hasher;
 
@@ -249,8 +249,8 @@ class NewCommand extends Command
 
 <fg=blue>Credentials:</>
 
-<fg=yellow>Front URL:</>    <fg=green>http://front.{$name}.app</>
-<fg=yellow>Back URL:</>     <fg=green>http://back.{$name}.app</>
+<fg=yellow>Front URL:</>    <fg=green>http://front.{$name}.localhost</>
+<fg=yellow>Back URL:</>     <fg=green>http://back.{$name}.localhost</>
 
 <fg=yellow>Email:</>        <fg=green>{$this->user->email}</>
 <fg=yellow>Password:</>     <fg=green>{$this->user->password_plain}</>
@@ -341,7 +341,7 @@ class NewCommand extends Command
      */
     protected function setupEnvExampleFile( $directory, $name, $position, $input, $output )
     {
-        $tld = ( $customTld = $input->getArgument( 'tld' ) ) ? $customTld : '.app';
+        $tld = ( $customTld = $input->getArgument( 'tld' ) ) ? $customTld : '.localhost';
         $env = file_get_contents( __DIR__ . '/.env.example' );
 
         $coreArray = $position === 'front' ? $this->frontEndCoreEnvSettings() : $this->backEndCoreEnvSettings();
@@ -457,7 +457,7 @@ class NewCommand extends Command
             'display_prices_for' => 1,
             'terms_conditions_version' => 1.0,
             'front_end_url' => "{$name}-front",
-            'front_end_folder' => "http://front.{$name}.app",
+            'front_end_folder' => "http://front.{$name}.localhost",
             'emails_from_name' => $siteName,
             'smtp_username' => 'AKIAJEUDEMHOCP2Y4E3A',
             'smtp_password' => 'AjZ0Gj9P2xpr9JK9q/2ae9Dd4FYpmG9ZOM92txTGwtYE',
