@@ -31,7 +31,7 @@ class NewCommand extends Command
 
     protected $emailAddress;
 
-    protected $version = '1.0.21';
+    protected $version = '1.0.22';
 
     protected $hasher;
 
@@ -293,7 +293,7 @@ class NewCommand extends Command
      */
     protected function download( $zipFile )
     {
-        $response = ( new Client )->get( 'https://github.com/ensphere/ensphere/archive/master.zip' );
+        $response = ( new Client() )->get( 'https://codeload.github.com/ensphere/ensphere/zip/master' );
         file_put_contents( $zipFile, $response->getBody() );
         return $this;
     }
